@@ -1,11 +1,5 @@
-import Typography from '@mui/material/Typography';
-
-import { PageLayout } from './shared/components/PageLayout';
+import { EditorPage } from './features/editor/EditorPage';
 
 export function App() {
-  return (
-    <PageLayout title="Редактор изображений">
-      <Typography variant="body1">Проект инициализирован.</Typography>
-    </PageLayout>
-  );
+  return <EditorPage />;
 }
