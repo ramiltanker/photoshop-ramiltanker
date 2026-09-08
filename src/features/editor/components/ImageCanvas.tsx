@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import type { MouseEvent } from 'react';
 
 import Box from '@mui/material/Box';
 
@@ -8,9 +9,11 @@ import type { RasterImage } from '@/core/image/types';
 type ImageCanvasProps = {
   image: RasterImage;
   scale: number;
+  picking: boolean;
+  onPick: (x: number, y: number) => void;
 };
 
-export function ImageCanvas({ image, scale }: ImageCanvasProps) {
+export function ImageCanvas({ image, scale, picking, onPick }: ImageCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -53,13 +56,27 @@ export function ImageCanvas({ image, scale }: ImageCanvasProps) {
     context.drawImage(source, 0, 0, canvas.width, canvas.height);
   }, [image, scale]);
 
+  const handleClick = (event: MouseEvent<HTMLCanvasElement>) => {
+    if (!picking) {
+      return;
+    }
+
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const x = Math.floor(((event.clientX - bounds.left) / bounds.width) * image.width);
+    const y = Math.floor(((event.clientY - bounds.top) / bounds.height) * image.height);
+
+    onPick(x, y);
+  };
+
   return (
     <Box
       component="canvas"
       ref={canvasRef}
+      onClick={handleClick}
       sx={{
         display: 'block',
         boxShadow: 3,
+        cursor: picking ? 'crosshair' : 'default',
         backgroundColor: '#ffffff',
         backgroundImage:
           'linear-gradient(45deg, #d9d9d9 25%, transparent 25%), linear-gradient(-45deg, #d9d9d9 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #d9d9d9 75%), linear-gradient(-45deg, transparent 75%, #d9d9d9 75%)',

@@ -1,25 +1,39 @@
 import { useRef } from 'react';
 import type { ChangeEvent } from 'react';
 
+import ColorizeIcon from '@mui/icons-material/Colorize';
 import DownloadIcon from '@mui/icons-material/Download';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
+import ToggleButton from '@mui/material/ToggleButton';
 import Toolbar from '@mui/material/Toolbar';
+import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+
+import type { EditorTool } from '../model/tools';
 
 const ACCEPTED_FILES = '.png,.jpg,.jpeg,.gb7';
 
 type EditorToolbarProps = {
   canSave: boolean;
   busy: boolean;
+  tool: EditorTool;
   onOpenFile: (file: File) => void;
   onSaveClick: () => void;
+  onToolChange: (tool: EditorTool) => void;
 };
 
-export function EditorToolbar({ canSave, busy, onOpenFile, onSaveClick }: EditorToolbarProps) {
+export function EditorToolbar({
+  canSave,
+  busy,
+  tool,
+  onOpenFile,
+  onSaveClick,
+  onToolChange,
+}: EditorToolbarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -40,11 +54,11 @@ export function EditorToolbar({ canSave, busy, onOpenFile, onSaveClick }: Editor
           component="h1"
           fontWeight={600}
           noWrap
-          sx={{ flexGrow: 1, display: { xs: 'none', sm: 'block' } }}
+          sx={{ display: { xs: 'none', md: 'block' } }}
         >
           Редактор изображений
         </Typography>
-        <Box sx={{ flexGrow: 1, display: { xs: 'block', sm: 'none' } }} />
+
         <Stack direction="row" spacing={1}>
           <Button
             variant="contained"
@@ -65,6 +79,23 @@ export function EditorToolbar({ canSave, busy, onOpenFile, onSaveClick }: Editor
             Сохранить
           </Button>
         </Stack>
+
+        <Box sx={{ flexGrow: 1 }} />
+
+        <Tooltip title="Пипетка: считать цвет пикселя">
+          <span>
+            <ToggleButton
+              value="eyedropper"
+              size="small"
+              selected={tool === 'eyedropper'}
+              disabled={!canSave || busy}
+              onChange={() => onToolChange(tool === 'eyedropper' ? 'none' : 'eyedropper')}
+            >
+              <ColorizeIcon fontSize="small" />
+            </ToggleButton>
+          </span>
+        </Tooltip>
+
         <input ref={inputRef} type="file" accept={ACCEPTED_FILES} hidden onChange={handleChange} />
       </Toolbar>
     </AppBar>

@@ -1,4 +1,5 @@
 import { describeGb7Depth, describeJpegDepth, describePngDepth } from './colorDepth';
+import { describeGb7Layout, describeJpegLayout, describePngLayout } from './colorModel';
 import { decodeWithBrowser } from './formats/browserCodec';
 import { detectFormat } from './formats/detectFormat';
 import { decodeGb7 } from './formats/gb7/decode';
@@ -21,6 +22,7 @@ export async function loadImageDocument(
 
   if (format === 'gb7') {
     const { image, hasMask } = await decodeGb7(buffer, onProgress);
+    const layout = describeGb7Layout(hasMask);
 
     return {
       image,
@@ -31,16 +33,21 @@ export async function loadImageDocument(
         width: image.width,
         height: image.height,
         colorDepth: describeGb7Depth(hasMask),
-        hasAlpha: hasMask,
+        colorModel: layout.colorModel,
+        hasAlpha: layout.hasAlpha,
       },
     };
   }
 
   const image = await decodeWithBrowser(file);
+  const pngMetadata = format === 'png' ? readPngMetadata(bytes) : null;
+  const jpegMetadata = format === 'jpeg' ? readJpegMetadata(bytes) : null;
   const colorDepth =
+    format === 'png' ? describePngDepth(pngMetadata) : describeJpegDepth(jpegMetadata);
+  const layout =
     format === 'png'
-      ? describePngDepth(readPngMetadata(bytes))
-      : describeJpegDepth(readJpegMetadata(bytes));
+      ? describePngLayout(pngMetadata, hasTransparentPixels(image))
+      : describeJpegLayout(jpegMetadata);
 
   onProgress?.(1);
 
@@ -53,7 +60,8 @@ export async function loadImageDocument(
       width: image.width,
       height: image.height,
       colorDepth,
-      hasAlpha: hasTransparentPixels(image),
+      colorModel: layout.colorModel,
+      hasAlpha: layout.hasAlpha,
     },
   };
 }

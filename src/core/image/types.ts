@@ -1,5 +1,7 @@
 export type ImageFormat = 'png' | 'jpeg' | 'gb7';
 
+export type ColorModel = 'grayscale' | 'rgb';
+
 export type ColorDepth = {
   bitsPerPixel: number;
   description: string;
@@ -18,6 +20,7 @@ export type ImageMetadata = {
   width: number;
   height: number;
   colorDepth: ColorDepth;
+  colorModel: ColorModel;
   hasAlpha: boolean;
 };
 
