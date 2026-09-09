@@ -4,6 +4,7 @@ import type { ChangeEvent } from 'react';
 import ColorizeIcon from '@mui/icons-material/Colorize';
 import DownloadIcon from '@mui/icons-material/Download';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
+import TuneIcon from '@mui/icons-material/Tune';
 import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -23,6 +24,7 @@ type EditorToolbarProps = {
   tool: EditorTool;
   onOpenFile: (file: File) => void;
   onSaveClick: () => void;
+  onLevelsClick: () => void;
   onToolChange: (tool: EditorTool) => void;
 };
 
@@ -32,6 +34,7 @@ export function EditorToolbar({
   tool,
   onOpenFile,
   onSaveClick,
+  onLevelsClick,
   onToolChange,
 }: EditorToolbarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -77,6 +80,15 @@ export function EditorToolbar({
             onClick={onSaveClick}
           >
             Сохранить
+          </Button>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<TuneIcon />}
+            disabled={!canSave || busy}
+            onClick={onLevelsClick}
+          >
+            Уровни
           </Button>
         </Stack>
 

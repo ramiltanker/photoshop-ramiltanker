@@ -5,17 +5,18 @@ import { buildChannelModel, createFullSelection } from '@/core/image/channels/ch
 import type { ChannelPreview } from '@/core/image/channels/channelPreview';
 import { buildChannelPreviews } from '@/core/image/channels/channelPreview';
 import { composeChannels } from '@/core/image/channels/composeChannels';
-import type { ImageDocument, RasterImage } from '@/core/image/types';
+import type { ImageMetadata, RasterImage } from '@/core/image/types';
 
 const PREVIEW_MAX_SIDE = 72;
 
-export function useChannelComposition(imageDocument: ImageDocument | null) {
+export function useChannelComposition(
+  image: RasterImage | null,
+  thumbnailSource: RasterImage | null,
+  metadata: ImageMetadata | null
+) {
   const channels = useMemo(
-    () =>
-      imageDocument
-        ? buildChannelModel(imageDocument.metadata.colorModel, imageDocument.metadata.hasAlpha)
-        : [],
-    [imageDocument]
+    () => (metadata ? buildChannelModel(metadata.colorModel, metadata.hasAlpha) : []),
+    [metadata]
   );
 
   const [selection, setSelection] = useState<ChannelSelection>(() => createFullSelection(channels));
@@ -28,22 +29,22 @@ export function useChannelComposition(imageDocument: ImageDocument | null) {
   }, [channels]);
 
   useEffect(() => {
-    if (!imageDocument) {
+    if (!thumbnailSource) {
       setPreviews([]);
       return;
     }
 
     setPreviews(
       buildChannelPreviews(
-        imageDocument.image,
+        thumbnailSource,
         channels.map((channel) => channel.id),
         PREVIEW_MAX_SIDE
       )
     );
-  }, [imageDocument, channels]);
+  }, [thumbnailSource, channels]);
 
   useEffect(() => {
-    if (!imageDocument) {
+    if (!image) {
       setComposed(null);
       return;
     }
@@ -51,7 +52,7 @@ export function useChannelComposition(imageDocument: ImageDocument | null) {
     let cancelled = false;
     setComposing(true);
 
-    composeChannels(imageDocument.image, channels, selection).then((result) => {
+    composeChannels(image, channels, selection).then((result) => {
       if (!cancelled) {
         setComposed(result);
         setComposing(false);
@@ -61,7 +62,7 @@ export function useChannelComposition(imageDocument: ImageDocument | null) {
     return () => {
       cancelled = true;
     };
-  }, [imageDocument, channels, selection]);
+  }, [image, channels, selection]);
 
   const toggleChannel = useCallback((id: ChannelId) => {
     setSelection((current) => ({ ...current, [id]: !current[id] }));

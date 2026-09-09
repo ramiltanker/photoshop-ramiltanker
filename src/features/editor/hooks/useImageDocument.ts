@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react';
 import { loadImageDocument } from '@/core/image/loadImageDocument';
 import { buildFileName, createImageBlob } from '@/core/image/saveImageDocument';
 import type { SaveOptions } from '@/core/image/saveImageDocument';
-import type { ImageDocument } from '@/core/image/types';
+import type { ImageDocument, RasterImage } from '@/core/image/types';
 import { downloadBlob } from '@/shared/utils/downloadBlob';
 
 export type EditorStatus = 'idle' | 'loading' | 'saving';
@@ -59,9 +59,22 @@ export function useImageDocument() {
     [imageDocument]
   );
 
+  const replaceImage = useCallback((image: RasterImage) => {
+    setImageDocument((current) => (current ? { ...current, image } : current));
+  }, []);
+
   const dismissError = useCallback(() => {
     setError(null);
   }, []);
 
-  return { imageDocument, status, progress, error, openFile, saveAs, dismissError };
+  return {
+    imageDocument,
+    status,
+    progress,
+    error,
+    openFile,
+    saveAs,
+    replaceImage,
+    dismissError,
+  };
 }

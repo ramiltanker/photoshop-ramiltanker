@@ -1,3 +1,4 @@
+import { toLuma } from '../../color/luma';
 import { CHANNELS_PER_PIXEL } from '../../constants';
 import { forEachRow } from '../../processing/rowScheduler';
 import type { ProgressHandler, RasterImage } from '../../types';
@@ -11,9 +12,6 @@ import {
 import { Gb7FormatError } from './errors';
 import { writeGb7Header } from './header';
 
-const RED_LUMA_WEIGHT = 0.299;
-const GREEN_LUMA_WEIGHT = 0.587;
-const BLUE_LUMA_WEIGHT = 0.114;
 const ALPHA_VISIBILITY_THRESHOLD = 128;
 
 export type Gb7EncodeOptions = {
@@ -21,9 +19,7 @@ export type Gb7EncodeOptions = {
 };
 
 function toGrayValue(red: number, green: number, blue: number): number {
-  const luma = red * RED_LUMA_WEIGHT + green * GREEN_LUMA_WEIGHT + blue * BLUE_LUMA_WEIGHT;
-
-  return Math.round((luma * GB7_MAX_GRAY) / 255);
+  return Math.round((toLuma(red, green, blue) * GB7_MAX_GRAY) / 255);
 }
 
 export async function encodeGb7(

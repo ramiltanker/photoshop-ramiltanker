@@ -8,37 +8,49 @@ import Snackbar from '@mui/material/Snackbar';
 
 import type { PixelSample } from '@/core/image/color/samplePixel';
 import { samplePixel } from '@/core/image/color/samplePixel';
+import { applyLevels } from '@/core/image/levels/applyLevels';
 import type { SaveOptions } from '@/core/image/saveImageDocument';
 import { useElementSize } from '@/shared/hooks/useElementSize';
 import { EditorSidebar } from './components/EditorSidebar';
 import { EditorToolbar } from './components/EditorToolbar';
 import { EmptyState } from './components/EmptyState';
 import { ImageCanvas } from './components/ImageCanvas';
+import { LevelsDialog } from './components/LevelsDialog';
 import { SaveImageDialog } from './components/SaveImageDialog';
 import { StatusBar } from './components/StatusBar';
 import { useChannelComposition } from './hooks/useChannelComposition';
 import { useImageDocument } from './hooks/useImageDocument';
+import { useLevels } from './hooks/useLevels';
 import type { EditorTool } from './model/tools';
 import { computeFitScale } from './model/viewport';
 
 const PROGRESS_SCALE = 100;
 
 export function EditorPage() {
-  const { imageDocument, status, progress, error, openFile, saveAs, dismissError } =
+  const { imageDocument, status, progress, error, openFile, saveAs, replaceImage, dismissError } =
     useImageDocument();
+  const levels = useLevels(imageDocument?.image ?? null);
+
+  const effectiveImage = levels.previewImage ?? imageDocument?.image ?? null;
+
   const { channels, selection, previews, composed, composing, toggleChannel, resetSelection } =
-    useChannelComposition(imageDocument);
+    useChannelComposition(
+      effectiveImage,
+      imageDocument?.image ?? null,
+      imageDocument?.metadata ?? null
+    );
 
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [tool, setTool] = useState<EditorTool>('none');
   const [sample, setSample] = useState<PixelSample | null>(null);
+  const [applyingLevels, setApplyingLevels] = useState(false);
 
   const viewportRef = useRef<HTMLDivElement>(null);
   const viewportSize = useElementSize(viewportRef);
 
-  const busy = status !== 'idle';
-  const displayedImage = composed ?? imageDocument?.image ?? null;
+  const busy = status !== 'idle' || applyingLevels;
+  const displayedImage = composed ?? effectiveImage;
 
   const scale = useMemo(
     () => (displayedImage ? computeFitScale(displayedImage, viewportSize) : 1),
@@ -75,6 +87,17 @@ export function EditorPage() {
     setDragActive(true);
   };
 
+  const handleApplyLevels = async () => {
+    if (!imageDocument) {
+      return;
+    }
+
+    setApplyingLevels(true);
+    replaceImage(await applyLevels(imageDocument.image, levels.state));
+    setApplyingLevels(false);
+    levels.closeDialog();
+  };
+
   const handleSave = (options: SaveOptions, fileName: string) => {
     setSaveDialogOpen(false);
     void saveAs(options, fileName);
@@ -95,6 +118,7 @@ export function EditorPage() {
         tool={tool}
         onOpenFile={(file) => void openFile(file)}
         onSaveClick={() => setSaveDialogOpen(true)}
+        onLevelsClick={levels.openDialog}
         onToolChange={setTool}
       />
 
@@ -157,6 +181,26 @@ export function EditorPage() {
       </Box>
 
       <StatusBar metadata={imageDocument?.metadata ?? null} scale={scale} />
+
+      {imageDocument && (
+        <LevelsDialog
+          open={levels.open}
+          image={imageDocument.image}
+          metadata={imageDocument.metadata}
+          target={levels.target}
+          state={levels.state}
+          previewEnabled={levels.previewEnabled}
+          logarithmic={levels.logarithmic}
+          busy={applyingLevels}
+          onTargetChange={levels.setTarget}
+          onSettingsChange={levels.updateTargetSettings}
+          onPreviewChange={levels.setPreviewEnabled}
+          onLogarithmicChange={levels.setLogarithmic}
+          onReset={levels.resetState}
+          onCancel={levels.closeDialog}
+          onApply={handleApplyLevels}
+        />
+      )}
 
       {imageDocument && (
         <SaveImageDialog
