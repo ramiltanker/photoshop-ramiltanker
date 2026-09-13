@@ -3,9 +3,9 @@ import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
-import type { ImageMetadata } from '@/core/image/types';
+import type { ImageMetadata, RasterImage } from '@/core/image/types';
 import { formatFileSize } from '@/shared/utils/formatFileSize';
-import { formatScale } from '../model/viewport';
+import { ScaleControl } from './ScaleControl';
 
 const FORMAT_LABELS: Record<ImageMetadata['format'], string> = {
   png: 'PNG',
@@ -15,7 +15,9 @@ const FORMAT_LABELS: Record<ImageMetadata['format'], string> = {
 
 type StatusBarProps = {
   metadata: ImageMetadata | null;
+  image: RasterImage | null;
   scale: number;
+  onScaleChange: (scale: number) => void;
 };
 
 type StatusItemProps = {
@@ -36,10 +38,10 @@ function StatusItem({ label, value }: StatusItemProps) {
   );
 }
 
-export function StatusBar({ metadata, scale }: StatusBarProps) {
+export function StatusBar({ metadata, image, scale, onScaleChange }: StatusBarProps) {
   return (
     <Paper square variant="outlined" sx={{ px: 2, py: 0.75, borderWidth: '1px 0 0 0' }}>
-      {metadata ? (
+      {metadata && image ? (
         <Stack
           direction="row"
           spacing={2}
@@ -49,14 +51,14 @@ export function StatusBar({ metadata, scale }: StatusBarProps) {
         >
           <StatusItem label="Файл:" value={metadata.fileName} />
           <StatusItem label="Формат:" value={FORMAT_LABELS[metadata.format]} />
-          <StatusItem label="Ширина:" value={`${metadata.width} px`} />
-          <StatusItem label="Высота:" value={`${metadata.height} px`} />
+          <StatusItem label="Ширина:" value={`${image.width} px`} />
+          <StatusItem label="Высота:" value={`${image.height} px`} />
           <StatusItem
             label="Глубина цвета:"
             value={`${metadata.colorDepth.bitsPerPixel} бит/пиксель — ${metadata.colorDepth.description}`}
           />
           <StatusItem label="Размер:" value={formatFileSize(metadata.fileSize)} />
-          <StatusItem label="Масштаб:" value={formatScale(scale)} />
+          <ScaleControl scale={scale} onChange={onScaleChange} />
         </Stack>
       ) : (
         <Typography variant="caption" color="text.secondary">

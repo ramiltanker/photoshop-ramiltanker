@@ -4,6 +4,7 @@ import type { ChangeEvent } from 'react';
 import ColorizeIcon from '@mui/icons-material/Colorize';
 import DownloadIcon from '@mui/icons-material/Download';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
+import PhotoSizeSelectLargeIcon from '@mui/icons-material/PhotoSizeSelectLarge';
 import TuneIcon from '@mui/icons-material/Tune';
 import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
@@ -25,6 +26,7 @@ type EditorToolbarProps = {
   onOpenFile: (file: File) => void;
   onSaveClick: () => void;
   onLevelsClick: () => void;
+  onResizeClick: () => void;
   onToolChange: (tool: EditorTool) => void;
 };
 
@@ -35,6 +37,7 @@ export function EditorToolbar({
   onOpenFile,
   onSaveClick,
   onLevelsClick,
+  onResizeClick,
   onToolChange,
 }: EditorToolbarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -89,6 +92,15 @@ export function EditorToolbar({
             onClick={onLevelsClick}
           >
             Уровни
+          </Button>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<PhotoSizeSelectLargeIcon />}
+            disabled={!canSave || busy}
+            onClick={onResizeClick}
+          >
+            Размер
           </Button>
         </Stack>
 

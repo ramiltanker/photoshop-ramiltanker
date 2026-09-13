@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DragEvent } from 'react';
 
 import Alert from '@mui/material/Alert';
@@ -8,6 +8,9 @@ import Snackbar from '@mui/material/Snackbar';
 
 import type { PixelSample } from '@/core/image/color/samplePixel';
 import { samplePixel } from '@/core/image/color/samplePixel';
+import { DEFAULT_INTERPOLATION } from '@/core/image/interpolation/registry';
+import { resizeImage } from '@/core/image/interpolation/resample';
+import type { InterpolationMethod } from '@/core/image/interpolation/types';
 import { applyLevels } from '@/core/image/levels/applyLevels';
 import type { SaveOptions } from '@/core/image/saveImageDocument';
 import { useElementSize } from '@/shared/hooks/useElementSize';
@@ -16,6 +19,7 @@ import { EditorToolbar } from './components/EditorToolbar';
 import { EmptyState } from './components/EmptyState';
 import { ImageCanvas } from './components/ImageCanvas';
 import { LevelsDialog } from './components/LevelsDialog';
+import { ResizeDialog } from './components/ResizeDialog';
 import { SaveImageDialog } from './components/SaveImageDialog';
 import { StatusBar } from './components/StatusBar';
 import { useChannelComposition } from './hooks/useChannelComposition';
@@ -45,17 +49,33 @@ export function EditorPage() {
   const [tool, setTool] = useState<EditorTool>('none');
   const [sample, setSample] = useState<PixelSample | null>(null);
   const [applyingLevels, setApplyingLevels] = useState(false);
+  const [resizeOpen, setResizeOpen] = useState(false);
+  const [resizing, setResizing] = useState(false);
+  const [scale, setScale] = useState(1);
+  const [autoFit, setAutoFit] = useState(true);
 
   const viewportRef = useRef<HTMLDivElement>(null);
   const viewportSize = useElementSize(viewportRef);
 
-  const busy = status !== 'idle' || applyingLevels;
+  const busy = status !== 'idle' || applyingLevels || resizing;
   const displayedImage = composed ?? effectiveImage;
 
-  const scale = useMemo(
-    () => (displayedImage ? computeFitScale(displayedImage, viewportSize) : 1),
-    [displayedImage, viewportSize]
-  );
+  useEffect(() => {
+    setAutoFit(true);
+  }, [imageDocument?.metadata]);
+
+  useEffect(() => {
+    if (!imageDocument || viewportSize.width === 0 || !autoFit) {
+      return;
+    }
+
+    setScale(computeFitScale(imageDocument.image, viewportSize));
+  }, [imageDocument, viewportSize, autoFit]);
+
+  const handleScaleChange = (value: number) => {
+    setAutoFit(false);
+    setScale(value);
+  };
 
   useEffect(() => {
     setSample(null);
@@ -98,6 +118,18 @@ export function EditorPage() {
     levels.closeDialog();
   };
 
+  const handleResize = async (width: number, height: number, method: InterpolationMethod) => {
+    if (!imageDocument) {
+      return;
+    }
+
+    setResizing(true);
+    setAutoFit(false);
+    replaceImage(await resizeImage(imageDocument.image, width, height, method));
+    setResizing(false);
+    setResizeOpen(false);
+  };
+
   const handleSave = (options: SaveOptions, fileName: string) => {
     setSaveDialogOpen(false);
     void saveAs(options, fileName);
@@ -119,6 +151,7 @@ export function EditorPage() {
         onOpenFile={(file) => void openFile(file)}
         onSaveClick={() => setSaveDialogOpen(true)}
         onLevelsClick={levels.openDialog}
+        onResizeClick={() => setResizeOpen(true)}
         onToolChange={setTool}
       />
 
@@ -146,12 +179,10 @@ export function EditorPage() {
           onDragLeave={() => setDragActive(false)}
           sx={{
             flexGrow: 1,
+            minWidth: 0,
             minHeight: { xs: 320, md: 240 },
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            overflow: 'auto',
-            p: 2,
+            overflow: 'hidden',
             backgroundColor: dragActive ? 'action.hover' : 'grey.200',
             transition: 'background-color 150ms',
           }}
@@ -160,11 +191,21 @@ export function EditorPage() {
             <ImageCanvas
               image={displayedImage}
               scale={scale}
+              method={DEFAULT_INTERPOLATION}
               picking={tool === 'eyedropper'}
               onPick={handlePick}
             />
           ) : (
-            <EmptyState />
+            <Box
+              sx={{
+                flexGrow: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <EmptyState />
+            </Box>
           )}
         </Box>
 
@@ -180,7 +221,12 @@ export function EditorPage() {
         />
       </Box>
 
-      <StatusBar metadata={imageDocument?.metadata ?? null} scale={scale} />
+      <StatusBar
+        metadata={imageDocument?.metadata ?? null}
+        image={imageDocument?.image ?? null}
+        scale={scale}
+        onScaleChange={handleScaleChange}
+      />
 
       {imageDocument && (
         <LevelsDialog
@@ -199,6 +245,16 @@ export function EditorPage() {
           onReset={levels.resetState}
           onCancel={levels.closeDialog}
           onApply={handleApplyLevels}
+        />
+      )}
+
+      {imageDocument && (
+        <ResizeDialog
+          open={resizeOpen}
+          image={imageDocument.image}
+          busy={resizing}
+          onClose={() => setResizeOpen(false)}
+          onSubmit={handleResize}
         />
       )}
 
