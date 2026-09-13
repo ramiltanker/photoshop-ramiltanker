@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import { applyLevels } from '@/core/image/levels/applyLevels';
 import type { LevelsSettings, LevelsState, LevelsTarget } from '@/core/image/levels/levelsSettings';
 import { createDefaultState, isStateNeutral } from '@/core/image/levels/levelsSettings';
 import type { RasterImage } from '@/core/image/types';
+import type { PreviewProcessor } from './useThrottledPreview';
+import { useThrottledPreview } from './useThrottledPreview';
 
-const PREVIEW_THROTTLE_MS = 60;
+const processLevels: PreviewProcessor<LevelsState> = (source, state) => applyLevels(source, state);
 
 export function useLevels(image: RasterImage | null) {
   const [open, setOpen] = useState(false);
@@ -13,33 +15,13 @@ export function useLevels(image: RasterImage | null) {
   const [state, setState] = useState<LevelsState>(createDefaultState);
   const [previewEnabled, setPreviewEnabled] = useState(true);
   const [logarithmic, setLogarithmic] = useState(false);
-  const [previewImage, setPreviewImage] = useState<RasterImage | null>(null);
-  const lastRunRef = useRef(0);
 
-  useEffect(() => {
-    if (!image || !open || !previewEnabled || isStateNeutral(state)) {
-      setPreviewImage(null);
-      return;
-    }
-
-    let cancelled = false;
-    const delay = Math.max(0, PREVIEW_THROTTLE_MS - (performance.now() - lastRunRef.current));
-
-    const timer = window.setTimeout(() => {
-      lastRunRef.current = performance.now();
-
-      applyLevels(image, state).then((result) => {
-        if (!cancelled) {
-          setPreviewImage(result);
-        }
-      });
-    }, delay);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [image, open, previewEnabled, state]);
+  const { preview: previewImage, pending: previewPending } = useThrottledPreview(
+    image,
+    state,
+    open && previewEnabled && !isStateNeutral(state),
+    processLevels
+  );
 
   const openDialog = useCallback(() => {
     setState(createDefaultState());
@@ -50,7 +32,6 @@ export function useLevels(image: RasterImage | null) {
 
   const closeDialog = useCallback(() => {
     setOpen(false);
-    setPreviewImage(null);
     setState(createDefaultState());
   }, []);
 
@@ -73,6 +54,7 @@ export function useLevels(image: RasterImage | null) {
     setLogarithmic,
     previewEnabled,
     previewImage,
+    previewPending,
     setTarget,
     setPreviewEnabled,
     updateTargetSettings,
