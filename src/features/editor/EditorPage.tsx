@@ -8,6 +8,7 @@ import Snackbar from '@mui/material/Snackbar';
 
 import type { PixelSample } from '@/core/image/color/samplePixel';
 import { samplePixel } from '@/core/image/color/samplePixel';
+import { applyKernel } from '@/core/image/filters/applyKernel';
 import { DEFAULT_INTERPOLATION } from '@/core/image/interpolation/registry';
 import { resizeImage } from '@/core/image/interpolation/resample';
 import type { InterpolationMethod } from '@/core/image/interpolation/types';
@@ -17,12 +18,14 @@ import { useElementSize } from '@/shared/hooks/useElementSize';
 import { EditorSidebar } from './components/EditorSidebar';
 import { EditorToolbar } from './components/EditorToolbar';
 import { EmptyState } from './components/EmptyState';
+import { FilterDialog } from './components/FilterDialog';
 import { ImageCanvas } from './components/ImageCanvas';
 import { LevelsDialog } from './components/LevelsDialog';
 import { ResizeDialog } from './components/ResizeDialog';
 import { SaveImageDialog } from './components/SaveImageDialog';
 import { StatusBar } from './components/StatusBar';
 import { useChannelComposition } from './hooks/useChannelComposition';
+import { useFilter } from './hooks/useFilter';
 import { useImageDocument } from './hooks/useImageDocument';
 import { useLevels } from './hooks/useLevels';
 import type { EditorTool } from './model/tools';
@@ -34,8 +37,9 @@ export function EditorPage() {
   const { imageDocument, status, progress, error, openFile, saveAs, replaceImage, dismissError } =
     useImageDocument();
   const levels = useLevels(imageDocument?.image ?? null);
+  const filter = useFilter(imageDocument?.image ?? null, imageDocument?.metadata ?? null);
 
-  const effectiveImage = levels.previewImage ?? imageDocument?.image ?? null;
+  const effectiveImage = levels.previewImage ?? filter.previewImage ?? imageDocument?.image ?? null;
 
   const { channels, selection, previews, composed, composing, toggleChannel, resetSelection } =
     useChannelComposition(
@@ -51,13 +55,17 @@ export function EditorPage() {
   const [applyingLevels, setApplyingLevels] = useState(false);
   const [resizeOpen, setResizeOpen] = useState(false);
   const [resizing, setResizing] = useState(false);
+  const [applyingFilter, setApplyingFilter] = useState(false);
+  const [operationProgress, setOperationProgress] = useState(0);
   const [scale, setScale] = useState(1);
   const [autoFit, setAutoFit] = useState(true);
 
   const viewportRef = useRef<HTMLDivElement>(null);
   const viewportSize = useElementSize(viewportRef);
 
-  const busy = status !== 'idle' || applyingLevels || resizing;
+  const operationRunning = applyingLevels || resizing || applyingFilter;
+  const busy = status !== 'idle' || operationRunning;
+  const previewRunning = composing || levels.previewPending || filter.previewPending;
   const displayedImage = composed ?? effectiveImage;
 
   useEffect(() => {
@@ -112,8 +120,9 @@ export function EditorPage() {
       return;
     }
 
+    setOperationProgress(0);
     setApplyingLevels(true);
-    replaceImage(await applyLevels(imageDocument.image, levels.state));
+    replaceImage(await applyLevels(imageDocument.image, levels.state, setOperationProgress));
     setApplyingLevels(false);
     levels.closeDialog();
   };
@@ -123,11 +132,32 @@ export function EditorPage() {
       return;
     }
 
+    setOperationProgress(0);
     setResizing(true);
     setAutoFit(false);
-    replaceImage(await resizeImage(imageDocument.image, width, height, method));
+    replaceImage(
+      await resizeImage(imageDocument.image, width, height, method, setOperationProgress)
+    );
     setResizing(false);
     setResizeOpen(false);
+  };
+
+  const handleApplyFilter = async () => {
+    if (!imageDocument || !filter.request) {
+      return;
+    }
+
+    setOperationProgress(0);
+    setApplyingFilter(true);
+
+    const result = await applyKernel(imageDocument.image, filter.request, setOperationProgress);
+
+    if (result) {
+      replaceImage(result);
+    }
+
+    setApplyingFilter(false);
+    filter.closeDialog();
   };
 
   const handleSave = (options: SaveOptions, fileName: string) => {
@@ -152,14 +182,15 @@ export function EditorPage() {
         onSaveClick={() => setSaveDialogOpen(true)}
         onLevelsClick={levels.openDialog}
         onResizeClick={() => setResizeOpen(true)}
+        onFilterClick={filter.openDialog}
         onToolChange={setTool}
       />
 
       <Box sx={{ height: 4 }}>
-        {(busy || composing) && (
+        {(busy || previewRunning) && (
           <LinearProgress
             variant={busy ? 'determinate' : 'indeterminate'}
-            value={progress * PROGRESS_SCALE}
+            value={(status !== 'idle' ? progress : operationProgress) * PROGRESS_SCALE}
           />
         )}
       </Box>
@@ -247,6 +278,26 @@ export function EditorPage() {
           onApply={handleApplyLevels}
         />
       )}
+
+      <FilterDialog
+        open={filter.open}
+        cells={filter.cells}
+        validation={filter.validation}
+        availableChannels={filter.availableChannels}
+        channels={filter.channels}
+        edgeMode={filter.edgeMode}
+        previewEnabled={filter.previewEnabled}
+        busy={applyingFilter}
+        onPresetChange={filter.selectPreset}
+        onCellChange={filter.updateCell}
+        onChannelToggle={filter.toggleChannel}
+        onAllChannelsChange={filter.setAllChannels}
+        onEdgeModeChange={filter.setEdgeMode}
+        onPreviewChange={filter.setPreviewEnabled}
+        onReset={filter.resetSettings}
+        onClose={filter.closeDialog}
+        onApply={handleApplyFilter}
+      />
 
       {imageDocument && (
         <ResizeDialog

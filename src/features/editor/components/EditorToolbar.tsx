@@ -3,6 +3,7 @@ import type { ChangeEvent } from 'react';
 
 import ColorizeIcon from '@mui/icons-material/Colorize';
 import DownloadIcon from '@mui/icons-material/Download';
+import BlurOnIcon from '@mui/icons-material/BlurOn';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import PhotoSizeSelectLargeIcon from '@mui/icons-material/PhotoSizeSelectLarge';
 import TuneIcon from '@mui/icons-material/Tune';
@@ -27,6 +28,7 @@ type EditorToolbarProps = {
   onSaveClick: () => void;
   onLevelsClick: () => void;
   onResizeClick: () => void;
+  onFilterClick: () => void;
   onToolChange: (tool: EditorTool) => void;
 };
 
@@ -38,6 +40,7 @@ export function EditorToolbar({
   onSaveClick,
   onLevelsClick,
   onResizeClick,
+  onFilterClick,
   onToolChange,
 }: EditorToolbarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -54,7 +57,10 @@ export function EditorToolbar({
 
   return (
     <AppBar position="static" color="default" elevation={0} variant="outlined">
-      <Toolbar variant="dense" sx={{ gap: 2 }}>
+      <Toolbar
+        variant="dense"
+        sx={{ gap: 2, flexWrap: { xs: 'wrap', md: 'nowrap' }, py: { xs: 1, md: 0 } }}
+      >
         <Typography
           variant="subtitle1"
           component="h1"
@@ -65,7 +71,7 @@ export function EditorToolbar({
           Редактор изображений
         </Typography>
 
-        <Stack direction="row" spacing={1}>
+        <Stack direction="row" useFlexGap flexWrap="wrap" gap={1}>
           <Button
             variant="contained"
             size="small"
@@ -101,6 +107,15 @@ export function EditorToolbar({
             onClick={onResizeClick}
           >
             Размер
+          </Button>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<BlurOnIcon />}
+            disabled={!canSave || busy}
+            onClick={onFilterClick}
+          >
+            Фильтр
           </Button>
         </Stack>
 
