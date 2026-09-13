@@ -18,16 +18,23 @@ function waitForNextTask(): Promise<void> {
 export async function forEachRow(
   height: number,
   handleRow: (y: number) => void,
-  onProgress?: ProgressHandler
-): Promise<void> {
+  onProgress?: ProgressHandler,
+  signal?: AbortSignal
+): Promise<boolean> {
   for (let y = 0; y < height; y += 1) {
     handleRow(y);
 
     if ((y + 1) % ROWS_PER_CHUNK === 0 && y + 1 < height) {
       onProgress?.((y + 1) / height);
       await waitForNextTask();
+
+      if (signal?.aborted) {
+        return false;
+      }
     }
   }
 
   onProgress?.(1);
+
+  return true;
 }
